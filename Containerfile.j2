@@ -1,0 +1,54 @@
+ARG BASE_VERSION=15
+FROM ghcr.io/daemonless/nginx-base:${BASE_VERSION}
+
+ARG FREEBSD_ARCH=amd64
+ARG PACKAGES="ca_root_nss"
+ARG UPSTREAM_URL="https://api.github.com/repos/storytold/figcraft/releases/latest"
+ARG UPSTREAM_JQ=".tag_name"
+
+LABEL org.opencontainers.image.title="FigCraft" \
+      org.opencontainers.image.description="Open-source, clean-room Figma-style interface design and prototyping in Rust, served as a WebAssembly web app on FreeBSD." \
+      org.opencontainers.image.source="https://github.com/daemonless/figcraft" \
+      org.opencontainers.image.url="https://getartcraft.com/apps/figcraft" \
+      org.opencontainers.image.documentation="https://github.com/storytold/figcraft" \
+      org.opencontainers.image.licenses="MIT OR Apache-2.0" \
+      org.opencontainers.image.vendor="daemonless" \
+      org.opencontainers.image.authors="daemonless" \
+      io.daemonless.category="Productivity" \
+      io.daemonless.port="80" \
+      io.daemonless.arch="${FREEBSD_ARCH}" \
+      io.daemonless.base="nginx" \
+      io.daemonless.upstream-url="${UPSTREAM_URL}" \
+      io.daemonless.upstream-jq="${UPSTREAM_JQ}" \
+      io.daemonless.packages="${PACKAGES}"
+
+# The web release is a static WebAssembly site (index.html + .js/.wasm), no server code.
+# Some releases ship cargo build leftovers (.fingerprint, build, deps) and .br files nginx
+# cannot serve; drop them. Precompress the rest so nginx gzip_static sends ~40% of the raw wasm.
+# The API is rate-limited on shared CI runners (403, empty version); fall back to the
+# tag that github.com/.../releases/latest redirects to.
+RUN pkg update && pkg install -y ${PACKAGES} && \
+    VERSION=$(fetch -qo - "${UPSTREAM_URL}" | jq -r "${UPSTREAM_JQ}" | sed 's/^v//') && \
+    if [ -z "${VERSION}" ] || [ "${VERSION}" = "null" ]; then \
+        VERSION=$(fetch -v -o /dev/null "https://github.com/storytold/figcraft/releases/latest" 2>&1 | sed -n 's|^.*redirect to .*/releases/tag/v\{0,1\}||p' | head -1); \
+    fi && \
+    if [ -z "${VERSION}" ]; then echo "ERROR: could not resolve the release version" >&2; exit 1; fi && \
+    echo "Installing FigCraft web ${VERSION}" && \
+    fetch -qo /tmp/figcraft-web.zip "https://github.com/storytold/figcraft/releases/download/v${VERSION}/figcraft-web-${VERSION}.zip" && \
+    unzip -q /tmp/figcraft-web.zip -d /tmp/figcraft-web && \
+    mkdir -p /usr/local/www/app /app && \
+    mv /tmp/figcraft-web/figcraft-web-${VERSION}/* /usr/local/www/app/ && \
+    rm -rf /tmp/figcraft-web /tmp/figcraft-web.zip && \
+    cd /usr/local/www/app && \
+    rm -rf _headers build deps examples incremental *.br *.gz && \
+    find /usr/local/www/app -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' -o -name '*.ttf' -o -name '*.otf' \) -exec gzip -9 -k {} \; && \
+    echo "${VERSION}" > /app/version && chmod a+r /app/version && \
+    chown -R bsd:bsd /usr/local/www/app && \
+    pkg clean -ay && \
+    rm -rf /var/cache/pkg/* /var/db/pkg/repos/*
+
+COPY root/ /
+
+RUN chmod +x /etc/cont-init.d/* 2>/dev/null || true
+
+EXPOSE 80
