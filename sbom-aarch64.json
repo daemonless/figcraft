@@ -1,11 +1,11 @@
 {
-  "generated": "2026-10-20T22:32:13Z",
+  "generated": "2026-10-21T22:30:56Z",
   "image": "figcraft",
   "tags": {
     "latest-aarch64": {
-      "app_version": "0.8.0",
+      "app_version": "0.9.0",
       "arch": "aarch64",
-      "generated": "2026-10-20T22:31:47Z",
+      "generated": "2026-10-21T22:30:29Z",
       "packages": {
         "dotnet": [],
         "freebsd": [
