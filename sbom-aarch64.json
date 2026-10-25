@@ -1,11 +1,11 @@
 {
-  "generated": "2026-10-22T22:31:28Z",
+  "generated": "2026-10-25T19:32:49Z",
   "image": "figcraft",
   "tags": {
     "latest-aarch64": {
-      "app_version": "0.10.0",
+      "app_version": "0.11.2",
       "arch": "aarch64",
-      "generated": "2026-10-22T22:30:55Z",
+      "generated": "2026-10-25T19:32:26Z",
       "packages": {
         "dotnet": [],
         "freebsd": [
@@ -266,7 +266,7 @@
               "BSD2CLAUSE"
             ],
             "name": "nginx",
-            "version": "1.30.5_6,3"
+            "version": "1.30.6_3,3"
           },
           {
             "licenses": [
